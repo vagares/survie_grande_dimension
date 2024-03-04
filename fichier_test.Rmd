@@ -1,0 +1,109 @@
+---
+pdf_document: default
+output:
+  html_document: default
+  pdf_document: default
+title: 'Survie grande dimension'
+html_notebook: default
+---
+
+```{r}
+source("function_data_gen.R")
+source("utils.R")
+```
+
+## Génération des données
+
+```{r}
+# calculer le paramètre theta avant chaque senario
+
+data = data_gen(n=200,p=100,a=0,rho=0.7,sr=0.5,b=1,beta0=0,                    m1 =10.5,m0 = 10,nu=1,tau = 0.2 )
+To= data$To
+delta =data$delta
+X =data$X
+```
+
+## Méthode RSF
+
+```{r}
+library(randomForestSRC)
+# https://www.randomforestsrc.org/articles/survival.html#ensemble-chf-and-survival-function
+
+obj = rfsrc(Surv(To,delta)~X,
+             ntree = 1000, nodesize = 5, nsplit = 50, importance = TRUE)
+
+H_obj = obj$chf #obj$chf.oob obj$survival obj$survival.oob
+
+### obtain Brier score using KM and RSF censoring distribution estimators
+#bs.km <- get.brier.survival(obj, cens.mode = "km")$brier.score
+#bs.rsf <- get.brier.survival(obj, cens.mode = "rfsrc")$brier.score
+```
+
+## Méthode Coxboosting
+
+```{r}
+library(CoxBoost)
+
+obj = CoxBoost(To,delta,X,unpen.index=NULL,standardize=TRUE,subset=1:length(time),
+         weights=NULL,stepno=100,penalty=9*sum(status[subset]==1),
+         criterion = c("pscore", "score","hpscore","hscore"),
+         stepsize.factor=1,sf.scheme=c("sigmoid","linear"),pendistmat=NULL,
+         connected.index=NULL,x.is.01=FALSE,return.score=TRUE,trace=FALSE) 
+
+
+```
+
+## Calculer "vrai" C de Harrel (n=10000)
+
+```{r}
+n=10000
+p=100
+a=0
+rho=0.7
+sr=0.5
+b=1
+beta0=0
+m1 =10.5
+m0 = 10
+nu=1
+tau = 0.2
+data = data_gen(n,p,a,rho,sr,b,beta0,m1,m0,nu,tau)
+
+To= data$To
+delta =data$delta
+X =data$X
+tau = max(To)
+b = log((m0/m1)^nu)
+p_a = round(sr * p)
+p_na= p - p_a
+lambda_x = exp(beta0)*exp(X[,1:p_a]%*%rep(b,p_a))
+
+tau = max(To)
+HarrelC_index_risk(To,delta,lambda_x,nu)
+
+m = numeric(n)
+for (i in (1:n)){m[i] = survie(tau,lambda_x[i],nu)}
+
+HarrelC_index(m,To,delta)
+```
+
+## Calculer C de Harrel et Brier score par validation croisée (différentes méthodes)
+
+```{r}
+# code pour la vadidation croisée C Harrel reconstitué
+donnees=rbind(To,delta,X)
+nodesize_vec = 5
+err <- rep(0,length(nodesize_vec))
+B <- 10
+prev <- rep(0,nrow(donnees))
+n_CV <- nrow(dapp)/B
+#for (i in 1:length(nodesize_vec)){
+#  for (j in 1:B){
+#    ind_testj <- ((j-1)*n_CV+1):(j*n_CV)
+#    prev[ind_testj] =
+#  }
+#  err[i] = 
+#}
+
+
+```
