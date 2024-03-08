@@ -20,8 +20,8 @@ HarrelC_index = function(m,To,delta){
   for (i in(1:length(m))){
     for (j in(1:length(m))){
       if (j != i){
-        if ( (To[i]>To[j]) & (m[i]<m[j]) & (delta[j]==1)) {num = 1}
-        if ( (To[i]>To[j]) &  (delta[j]==1)) {denom = 1}
+        if ( (To[i]>To[j]) & (m[i]<m[j]) & (delta[j]==1)) {num = num+ 1}
+        if ( (To[i]>To[j]) & (delta[j]==1)) {denom = denom + 1}
       }
   }
   }
@@ -35,8 +35,8 @@ HarrelC_index_risk = function(To,delta,lambdax,nu){
   for (i in(1:length(To))){
     for (j in(1:length(To))){
       if (j != i){
-        if ( (To[i]>To[j]) & (risk(To[j],lambda_x[i],nu)<risk(To[j],lambda_x[j],nu)) & (delta[j]==1)) {num = 1}
-        if ( (To[i]>To[j]) &  (delta[j]==1)) {denom = 1}
+        if ( (To[i]>To[j]) & (risk(To[j],lambda_x[i],nu)<risk(To[j],lambda_x[j],nu)) & (delta[j]==1)) {num = num+1}
+        if ( (To[i]>To[j]) &  (delta[j]==1)) {denom = denom+1}
       }
     }
   }

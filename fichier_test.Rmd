@@ -10,17 +10,22 @@ html_notebook: default
 ```{r}
 source("function_data_gen.R")
 source("utils.R")
+library(survival)
 ```
 
 ## Génération des données
 
 ```{r}
 # calculer le paramètre theta avant chaque senario
-
-data = data_gen(n=200,p=100,a=0,rho=0.7,sr=0.5,b=1,beta0=0,                    m1 =10.5,m0 = 10,nu=1,tau = 0.2 )
+p=100
+data = data_gen(n=200,p=100,a=0,rho=0.7,sr=0.5,b=1,beta0=0,m1 =10.5,m0 = 10,nu=1,tau = 0.2 )
 To= data$To
 delta =data$delta
 X =data$X
+donnees=data.frame(cbind(To,delta,X))
+Xnames=c()
+for (i in (1:p)){Xnames = c(Xnames,paste("X",i))}
+colnames(donnees) = c("To","delta",Xnames)
 ```
 
 ## Méthode RSF
@@ -29,14 +34,41 @@ X =data$X
 library(randomForestSRC)
 # https://www.randomforestsrc.org/articles/survival.html#ensemble-chf-and-survival-function
 
-obj = rfsrc(Surv(To,delta)~X,
+obj = rfsrc(Surv(To,delta)~.,data=donnees,
              ntree = 1000, nodesize = 5, nsplit = 50, importance = TRUE)
 
 H_obj = obj$chf #obj$chf.oob obj$survival obj$survival.oob
 
 ### obtain Brier score using KM and RSF censoring distribution estimators
-#bs.km <- get.brier.survival(obj, cens.mode = "km")$brier.score
+bs.km <- get.brier.survival(obj, cens.mode = "km")$brier.score
 #bs.rsf <- get.brier.survival(obj, cens.mode = "rfsrc")$brier.score
+## plot the brier score
+plot(bs.km, type = "s", col = 2)
+#lines(bs.rsf, type ="s", col = 4)
+legend("bottomright", legend = c("cens.model = km", "cens.model = rfsrc"), fill = c(2,4))
+```
+```{r}
+  #jk.obj <- subsample(obj)
+  #pdf("VIMPsur.pdf", width = 15, height = 20)
+  #par(oma = c(0.5, 10, 0.5, 0.5))
+  #par(cex.axis = 2.0, cex.lab = 2.0, cex.main = 2.0, mar = c(6.0,17,1,1), mgp = c(4, 1, 0))
+  #plot(jk.obj, xlab = "Variable Importance (x 100)", cex = 1.2)
+  #dev.off()
+```  
+  
+```{r}
+# C index de harrel
+library(compareC)
+chf_c = obj$chf.oob[,150]
+s_c = -obj$survival.oob[,150]
+Harrel_chf_c= estC(To,delta,chf_c)
+Harrel_s_c = estC(To,delta,-s_c)
+Harrel_s_c
+
+HarrelC_index(s_c,To,delta)
+#When bootstrapping is by none, a coherent OOB subset is not available to assess prediction
+#error. Thus, all outputs dependent on this are suppressed. In such cases, prediction error is only available via classical cross-validation (the user will need to use the
+#predict.rfsrcfunction).
 ```
 
 ## Méthode Coxboosting
@@ -82,7 +114,7 @@ tau = max(To)
 HarrelC_index_risk(To,delta,lambda_x,nu)
 
 m = numeric(n)
-for (i in (1:n)){m[i] = survie(tau,lambda_x[i],nu)}
+for (i in (1:n)){m[i] = -survie(tau,lambda_x[i],nu)}
 
 HarrelC_index(m,To,delta)
 ```
